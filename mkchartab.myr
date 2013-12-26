@@ -1,0 +1,227 @@
+use std
+use bio
+
+/* Oh, for a C-style enum... */
+const Fcode	= 0
+const Fname	= 1
+const Fcat	= 2
+const Fcomb	= 3
+const Fbidi	= 4
+const Fdecomp	= 5
+const Fdecimal	= 6
+const Fdigit	= 7
+const Fnumval	= 8
+const Fmirrored	= 9
+const Funiname	= 10
+const Fcomment	= 11
+const Fupper	= 12
+const Flower	= 13
+const Ftitle	= 14
+
+const Nfields	= 15
+
+const Maxchar : std.size = 0x10FFFF
+
+var tabalpha	: bool[Maxchar]
+var tabupper	: bool[Maxchar]
+var tablower	: bool[Maxchar]
+var tabtitle	: bool[Maxchar]
+
+var tabdigit	: bool[Maxchar]
+var tabxdigit	: bool[Maxchar]
+var tabspace	: bool[Maxchar]
+var tabblank	: bool[Maxchar]
+
+var digitval	: int[Maxchar]
+
+var uppercasemap	: char[Maxchar]
+var lowercasemap	: char[Maxchar]
+var titlecasemap	: char[Maxchar]
+
+const main = {args : byte[:][:]
+	var i
+
+	if args.len < 2
+		std.fatal(1, "mkchartab UnicodeData.txt..\n")
+	;;
+
+	addspecials()
+
+	for i = 1; i < args.len; i++
+		match bio.open(args[i], bio.Rd)
+		| `std.Some f:
+			addtotab(f)
+			bio.close(f)
+		| `std.None:
+			std.fatal(1, "could not open %s\n", args[i])
+		;;
+	;;
+	gensearchrange("upper", tabupper[:])
+	gensearchrange("lower", tablower[:])
+	gensearchrange("title", tabtitle[:])
+	gensearchrange("digit", tabdigit[:])
+	gensearchrange("xdigit", tabxdigit[:])
+	gensearchrange("space", tabspace[:])
+	gensearchrange("blank", tabblank[:])
+}
+
+const addtotab = {f
+	var fields, rngfields
+	var first, last
+	var cat
+	var i
+
+	while true
+		match next(f)
+		| `std.Some v:	fields = v
+		| `std.None: 	-> 
+		;;
+
+		first = hexval(fields[Fcode])
+		last = first
+
+		match std.strfind(fields[Fname], ", First>")
+		| `std.Some idx:
+			match next(f)
+			| `std.Some fld:
+				rngfields = fld
+				last = hexval(rngfields[Fcode])
+			| `std.None:
+				std.fatal(1, "range start at EOF\n")
+			;;
+		| `std.None:	/* nothing */
+		;;
+
+		cat = fields[Fcat]
+		for i = first; i <= last; i++
+			/* L* are the alphabetic characters */
+			if std.sleq(cat[:1], "L")
+				tabalpha[i] = true
+			elif std.sleq(cat[:1], "Z")
+				std.put("space: %i(%s)\n", i, fields[Fcode])
+				tabspace[i] = true
+			;;
+
+			if std.sleq(cat, "Lu")
+			        tabupper[i] = true
+			elif std.sleq(cat, "Ll")
+			        tablower[i] = true
+			elif std.sleq(cat, "Lt")
+			        tabtitle[i] = true
+			elif std.sleq(cat, "Nd")
+				tabdigit[i] = true
+			elif std.sleq(cat, "Zs")
+				tabblank[i] = true
+			;;
+
+			if fields[Fupper].len
+				uppercasemap[i] = hexval(fields[Fupper])
+			;;
+			if fields[Flower].len
+				lowercasemap[i] = hexval(fields[Fupper])
+			;;
+			if fields[Ftitle].len
+				titlecasemap[i] = hexval(fields[Fupper])
+			;;
+		;;
+		std.slfree(fields)
+	;;
+
+}
+
+const gensearchrange = {name, vals
+	var start, end
+
+	start = 0
+	end  = 0
+	std.put("const _%stab = [\n", name)
+	while start < Maxchar
+		while !vals[start] && start < Maxchar
+			start++
+		;;
+		end = start + 1
+		while vals[end] && end < Maxchar
+			end++
+		;;
+		if vals[start]
+			std.put("\t[0x%xz,0x%xz]\n", start, end - 1)
+		;;
+		start = end
+	;;
+	std.put("]\n\n")
+}
+
+const next = {f
+	var sp
+
+	match bio.readln(f)
+	| `std.Some ln:
+		sp = std.strsplit(ln, ";")
+		if sp.len != Nfields
+			std.fatal(1, "\"%s\" is not valid unicode line\n", ln)
+		;;
+		-> `std.Some sp
+	| `std.None:
+		-> `std.None
+	;;
+}
+
+const hexval = {str
+	match std.intparsebase(str, 16)
+	| `std.Some val:	-> val
+	| `std.None:	std.fatal(1, "%s is not a hex value", str)
+	;;
+}
+
+const addspecials = {
+	var i
+
+	/*
+	for some reason, Unicode doesn't think that
+	'\n', '\r', etc are actually line separators or
+	blanks... it classifies them as control characters.
+
+	Fill it in for our purposes.
+	*/
+	tabspace['\t'] = true
+	tabspace['\n'] = true
+	tabspace['\r'] = true
+	tabspace[0x0b] = true /* \v */
+	tabspace[0x0c] = true /* \f */
+	tabspace[0x85] = true /* "next line" control char */
+
+	tabblank['\t'] = true
+
+	/* hex digits */
+	tabxdigit['0'] = true
+	tabxdigit['1'] = true
+	tabxdigit['2'] = true
+	tabxdigit['3'] = true
+	tabxdigit['4'] = true
+	tabxdigit['5'] = true
+	tabxdigit['6'] = true
+	tabxdigit['7'] = true
+	tabxdigit['8'] = true
+	tabxdigit['9'] = true
+
+	tabxdigit['a'] = true
+	tabxdigit['b'] = true
+	tabxdigit['c'] = true
+	tabxdigit['d'] = true
+	tabxdigit['e'] = true
+	tabxdigit['f'] = true
+
+	tabxdigit['A'] = true
+	tabxdigit['B'] = true
+	tabxdigit['C'] = true
+	tabxdigit['D'] = true
+	tabxdigit['E'] = true
+	tabxdigit['F'] = true
+
+	/* identity mapping should be the default for case switching */
+	for i = 0; i < Maxchar; i++
+		uppercasemap[i] = i castto(char)
+		lowercasemap[i] = i castto(char)
+		titlecasemap[i] = i castto(char)
+	;;
+}
