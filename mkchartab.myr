@@ -103,6 +103,7 @@ const writesearchtabs = {
 		("asciidigit", tabdigit[:0x80], true),
 		("asciixdigit", tabxdigit[:0x80], true),
 		("asciispace", tabspace[:0x80], true),
+		("asciiblank", tabblank[:0x80], true),
 		("alpha", tabupper[:], false),
 		("upper", tabupper[:], false),
 		("lower", tablower[:], false),
