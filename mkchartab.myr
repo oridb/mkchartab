@@ -27,6 +27,7 @@ var tabupper	: bool[Maxchar]
 var tablower	: bool[Maxchar]
 var tabtitle	: bool[Maxchar]
 
+
 var tabdigit	: bool[Maxchar]
 var tabxdigit	: bool[Maxchar]
 var tabspace	: bool[Maxchar]
@@ -38,17 +39,30 @@ var uppercasemap	: char[Maxchar]
 var lowercasemap	: char[Maxchar]
 var titlecasemap	: char[Maxchar]
 
+var opt_ascii
+var opt_pkgname
+
+const usage = {name
+	std.fatal(1, "%s [-a] [-p pkg] UnicodeData.txt..\n", name)
+}
+
 const main = {args : byte[:][:]
 	var i
+	var optctx
 
-	if args.len < 2
-		std.fatal(1, "mkchartab UnicodeData.txt..\n")
+	optctx = std.optinit("ap:h", args)
+	while !std.optdone(optctx)
+		match std.optnext(optctx)
+		| ('a', _):	opt_ascii = true
+		| ('p', pn):	opt_pkgname = pn
+		| ('h', _):	usage(args[0])
+		;;
 	;;
 
 	addspecials()
 
-	for i = 1; i < args.len; i++
-		match bio.open(args[i], bio.Rd)
+	for i = 0; i < optctx.args.len; i++
+		match bio.open(optctx.args[i], bio.Rd)
 		| `std.Some f:
 			addtotab(f)
 			bio.close(f)
@@ -56,13 +70,59 @@ const main = {args : byte[:][:]
 			std.fatal(1, "could not open %s\n", args[i])
 		;;
 	;;
-	gensearchrange("upper", tabupper[:])
-	gensearchrange("lower", tablower[:])
-	gensearchrange("title", tabtitle[:])
-	gensearchrange("digit", tabdigit[:])
-	gensearchrange("xdigit", tabxdigit[:])
-	gensearchrange("space", tabspace[:])
-	gensearchrange("blank", tabblank[:])
+	writecomment(args)
+	writesearchtabs()
+}
+
+const writecomment = {args
+	var i
+
+	std.put("/*\n")
+	std.put(" This set of unicode tables was automatically generated\n")
+	std.put(" by the following command:\n")
+	for i = 0; i < args.len; i++
+		std.put(" %s", args[i])
+	;;
+	std.put("\n")
+	std.put(" editing it manually is probably a waste of time.\n")
+	std.put("*/\n\n")
+}
+
+const writesearchtabs = {
+	var i
+	var name, tab, ascii
+	var tabs = [
+		/*   name	table		isascii */
+		("asciialpha", tabupper[:0x80], true),
+		("asciiupper", tabupper[:0x80], true),
+		("asciilower", tablower[:0x80], true),
+		("asciidigit", tabdigit[:0x80], true),
+		("asciixdigit", tabxdigit[:0x80], true),
+		("asciispace", tabspace[:0x80], true),
+		("alpha", tabupper[:], false),
+		("upper", tabupper[:], false),
+		("lower", tablower[:], false),
+		("title", tabtitle[:], false),
+		("digit", tabdigit[:], false),
+		("xdigit", tabxdigit[:], false),
+		("space", tabspace[:], false),
+		("blank", tabblank[:], false)
+	]
+
+	std.put("pkg %s =\n", opt_pkgname)
+	for i = 0; i < tabs.len; i++
+		(name, tab, ascii) = tabs[i]
+		if !ascii || opt_ascii
+			std.put("\tconst tab%s\n", name)
+		;;
+	;;
+	std.put(";;\n")
+	for i = 0; i < tabs.len; i++
+		(name, tab, ascii) = tabs[i]
+		if !ascii || opt_ascii
+			gensearchrange(name, tab)
+		;;
+	;;
 }
 
 const addtotab = {f
@@ -98,7 +158,6 @@ const addtotab = {f
 			if std.sleq(cat[:1], "L")
 				tabalpha[i] = true
 			elif std.sleq(cat[:1], "Z")
-				std.put("space: %i(%s)\n", i, fields[Fcode])
 				tabspace[i] = true
 			;;
 
@@ -134,8 +193,8 @@ const gensearchrange = {name, vals
 
 	start = 0
 	end  = 0
-	std.put("const _%stab = [\n", name)
-	while start < Maxchar
+	std.put("const tab%s = [\n", name)
+	while start < vals.len
 		while !vals[start] && start < Maxchar
 			start++
 		;;
@@ -144,7 +203,7 @@ const gensearchrange = {name, vals
 			end++
 		;;
 		if vals[start]
-			std.put("\t[0x%xz,0x%xz]\n", start, end - 1)
+			std.put("\t['\\u{%xz}','\\u{%xz}'],\n", start, end - 1)
 		;;
 		start = end
 	;;
@@ -169,7 +228,7 @@ const next = {f
 const hexval = {str
 	match std.intparsebase(str, 16)
 	| `std.Some val:	-> val
-	| `std.None:	std.fatal(1, "%s is not a hex value", str)
+	| `std.None:	std.fatal(1, "\"%s\" is not a hex value\n", str)
 	;;
 }
 
