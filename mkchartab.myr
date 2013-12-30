@@ -47,7 +47,6 @@ const usage = {name
 }
 
 const main = {args : byte[:][:]
-	var i
 	var optctx
 
 	optctx = std.optinit("ap:h", args)
@@ -59,13 +58,13 @@ const main = {args : byte[:][:]
 		;;
 	;;
 
-	for i = 0; i < optctx.args.len; i++
-		match bio.open(optctx.args[i], bio.Rd)
+	for arg in optctx.args
+		match bio.open(arg, bio.Rd)
 		| `std.Some f:
 			addtotab(f)
 			bio.close(f)
 		| `std.None:
-			std.fatal(1, "could not open %s\n", args[i])
+			std.fatal(1, "could not open %s\n", arg)
 		;;
 	;;
 	addspecials()
@@ -78,13 +77,11 @@ const main = {args : byte[:][:]
 }
 
 const writecomment = {args
-	var i
-
 	std.put("/*\n")
 	std.put(" This set of unicode tables was automatically generated\n")
 	std.put(" by the following command:\n")
-	for i = 0; i < args.len; i++
-		std.put(" %s", args[i])
+	for arg in args
+		std.put(" %s", arg)
 	;;
 	std.put("\n")
 	std.put(" editing it manually is probably a waste of time.\n")
@@ -92,8 +89,6 @@ const writecomment = {args
 }
 
 const writesearchtabs = {
-	var i
-	var name, tab, ascii
 	var tabs = [
 		/*   name	table		isascii */
 		("asciialpha", tabalpha[:0x80], true),
@@ -116,15 +111,15 @@ const writesearchtabs = {
 	]
 
 	std.put("pkg %s =\n", opt_pkgname)
-	for i = 0; i < tabs.len; i++
-		(name, tab, ascii) = tabs[i]
+
+	for (name, tab, ascii) in tabs
 		if !ascii || opt_ascii
 			std.put("\tconst tab%s\n", name)
 		;;
 	;;
 	std.put(";;\n")
-	for i = 0; i < tabs.len; i++
-		(name, tab, ascii) = tabs[i]
+
+	for (name, tab, ascii) in tabs
 		if !ascii || opt_ascii
 			gensearchrange(name, tab)
 		;;
@@ -284,7 +279,7 @@ const addspecials = {
 	tabxdigit['F'] = true
 
 	/* identity mapping should be the default for case switching */
-	for i = 0; i < Maxchar; i++
+	for i = 0; i < uppercasemap.len; i++
 		uppercasemap[i] = i castto(char)
 		lowercasemap[i] = i castto(char)
 		titlecasemap[i] = i castto(char)
