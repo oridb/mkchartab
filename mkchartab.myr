@@ -99,7 +99,7 @@ const writesearchtabs = {
 		("asciixdigit", tabxdigit[:0x80], true),
 		("asciispace", tabspace[:0x80], true),
 		("asciiblank", tabblank[:0x80], true),
-		("alpha", tabupper[:], false),
+		("alpha", tabalpha[:], false),
 		("upper", tabupper[:], false),
 		("lower", tablower[:], false),
 		("title", tabtitle[:], false),
@@ -140,7 +140,6 @@ const addtotab = {f
 
 		first = hexval(fields[Fcode])
 		last = first
-
 		match std.strfind(fields[Fname], ", First>")
 		| `std.Some idx:
 			match next(f)
@@ -154,11 +153,13 @@ const addtotab = {f
 		;;
 
 		cat = fields[Fcat]
+		;
+
 		for i = first; i <= last; i++
 			/* L* are the alphabetic characters */
-			if std.sleq(cat[:1], "L")
+			if std.hasprefix(cat, "L")
 				tabalpha[i] = true
-			elif std.sleq(cat[:1], "Z")
+			elif std.hasprefix(cat, "Z")
 				tabspace[i] = true
 			;;
 
