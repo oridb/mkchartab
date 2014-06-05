@@ -175,13 +175,13 @@ const addtotab = {f
 				tabblank[i] = true
 			;;
 
-			if fields[Fupper].len
+			if fields[Fupper].len > 0
 				uppercasemap[i] = hexval(fields[Fupper])
 			;;
-			if fields[Flower].len
+			if fields[Flower].len > 0
 				lowercasemap[i] = hexval(fields[Fupper])
 			;;
-			if fields[Ftitle].len
+			if fields[Ftitle].len > 0
 				titlecasemap[i] = hexval(fields[Fupper])
 			;;
 		;;
