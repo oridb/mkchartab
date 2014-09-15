@@ -197,14 +197,14 @@ const gensearchrange = {name, vals
 	end  = 0
 	std.put("const tab%s = [\n", name)
 	while start < vals.len
-		while !vals[start] && start < vals.len
+		while start < vals.len && !vals[start]
 			start++
 		;;
 		end = start + 1
-		while vals[end] && end < vals.len
+		while end < vals.len && vals[end]
 			end++
 		;;
-		if vals[start]
+		if start < vals.len && vals[start]
 			std.put("\t['\\u{%xz}','\\u{%xz}'],\n", start, end - 1)
 		;;
 		start = end
