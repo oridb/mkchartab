@@ -42,8 +42,8 @@ var titlecasemap	: char[Maxchar]
 var opt_ascii
 var opt_pkgname
 
-const usage = {name
-	std.fatal(1, "%s [-a] [-p pkg] UnicodeData.txt..\n", name)
+const usage = {st, name
+	std.fatal(st, "%s [-a] [-p pkg] UnicodeData.txt..\n", name)
 }
 
 const main = {args : byte[:][:]
@@ -54,7 +54,8 @@ const main = {args : byte[:][:]
 		match std.optnext(optctx)
 		| ('a', _):	opt_ascii = true
 		| ('p', pn):	opt_pkgname = pn
-		| ('h', _):	usage(args[0])
+		| ('h', _):	usage(0, args[0])
+		| opt:		usage(1, args[0])
 		;;
 	;;
 
